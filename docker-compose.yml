@@ -79,14 +79,23 @@ services:
 
 volumes:
   mongo-volume:
+    driver: local
   mongo-configdb-volume:
+    driver: local
   postgres-volume:
+    driver: local
   rabbitmq-volume:
+    driver: local
   redis-volume:
+    driver: local
   stackstorm-packs-volume:
+    driver: local
   stackstorm-virtualenvs-volume:
+    driver: local
   stackstorm-configs-volume:
+    driver: local
   stackstorm-log-volume:
+    driver: local
 
 networks:
   public:
