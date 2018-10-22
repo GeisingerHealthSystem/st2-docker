@@ -38,6 +38,10 @@ case "$ST2_SERVICE" in
     DAEMON_ARGS="--config-file /etc/st2/st2.conf"
     exec /opt/stackstorm/st2/bin/st2rulesengine ${DAEMON_ARGS}
     ;;
+  "st2workflowengine" )
+    DAEMON_ARGS="--config-file /etc/st2/st2.conf"
+    exec /opt/stackstorm/st2/bin/st2workflowengine ${DAEMON_ARGS}
+    ;;
   "st2actionrunner" )
     DAEMON_ARGS="--config-file /etc/st2/st2.conf"
     exec /opt/stackstorm/st2/bin/st2actionrunner ${DAEMON_ARGS}
@@ -54,6 +58,10 @@ case "$ST2_SERVICE" in
     DAEMON_ARGS="--config-file /etc/st2/st2.conf"
     exec /opt/stackstorm/st2/bin/st2garbagecollector ${DAEMON_ARGS}
     ;;
+  "st2timersengine" )
+    DAEMON_ARGS="--config-file /etc/st2/st2.conf"
+    exec /opt/stackstorm/st2/bin/st2timersengine ${DAEMON_ARGS}
+    ;;
   "mistral-api" )
     set -e
     /opt/stackstorm/mistral/bin/mistral-db-manage --config-file /etc/mistral/mistral.conf upgrade head
@@ -66,10 +74,16 @@ case "$ST2_SERVICE" in
     /opt/stackstorm/mistral/bin/mistral-db-manage --config-file /etc/mistral/mistral.conf upgrade head
     /opt/stackstorm/mistral/bin/mistral-db-manage --config-file /etc/mistral/mistral.conf populate
     SERVER_ARGS="--config-file /etc/mistral/mistral.conf --log-file /var/log/mistral/mistral-server.log"
-    exec /opt/stackstorm/mistral/bin/mistral-server --server engine,executor ${SERVER_ARGS}
+    exec /opt/stackstorm/mistral/bin/mistral-server --server engine,executor,notifier ${SERVER_ARGS}
     ;;
   "st2web" )
     exec /usr/sbin/nginx -g 'daemon off;'
+    ;;
+  "st2chatops" )
+    set -e
+    export ST2_API=${ST2_API_URL}
+    cd /opt/stackstorm/chatops
+    exec bin/hubot $DAEMON_ARGS
     ;;
   "st2-register-content" )
     set -ex

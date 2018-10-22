@@ -28,7 +28,11 @@ RUN dpkg-divert /etc/bash.bashrc && \
 
 RUN echo -e "#!/bin/sh\nexit 101\n" > /usr/sbin/policy-rc.d \
     && rm /sbin/initctl; dpkg-divert --rename --remove /sbin/initctl \
-    && locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
+    && locale-gen en_US.UTF-8
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 
 # remove some pointless services
 RUN /usr/sbin/update-rc.d -f ondemand remove; \
@@ -110,10 +114,12 @@ RUN mkdir -p /home/stanley/.ssh && chmod 0700 /home/stanley/.ssh \
     && sed -i -r "s/^Defaults\s+\+?requiretty/# Defaults +requiretty/g" /etc/sudoers
 
 # Install and configure nginx
-RUN wget -O - http://nginx.org/keys/nginx_signing.key | apt-key add - \
+# Use hkp://...:80 explicitly to grab the GPG key for nginx because port 11371
+# is sometimes blocked by firewalls. See:
+# https://github.com/StackStorm/st2-docker/issues/135#issuecomment-392186954
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys ABF5BD827BD9BF62 \
     && echo "deb http://nginx.org/packages/mainline/ubuntu/ trusty nginx" >> /etc/apt/sources.list \
     && echo "deb-src http://nginx.org/packages/mainline/ubuntu/ trusty nginx" >> /etc/apt/sources.list \
-    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ABF5BD827BD9BF62 \
     && apt-get update \
     && apt-get install -y nginx \
     && cp /usr/share/doc/st2/conf/nginx/st2.conf /etc/nginx/conf.d/st2-base.cnf \
@@ -128,14 +134,22 @@ COPY bin/entrypoint.sh /st2-docker/bin/entrypoint.sh
 COPY bin/st2.sh /st2-docker/bin/st2.sh
 COPY config/local.conf /etc/init/local.conf
 
-# Default username/password is used unless overridden by supplying ST2_USER and/or ST2_PASSWORD
-# environment variables to `docker run` after the name of the image:
-#   docker run -e ST2_USER... image
-ENTRYPOINT ["/st2-docker/bin/entrypoint.sh"]
-
 # 1ppc
 RUN wget -O /dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 \
     && chmod +x /dumb-init
 COPY bin/entrypoint-1ppc.sh /st2-docker/bin/entrypoint-1ppc.sh
 COPY bin/inject_env.py /st2-docker/bin/inject_env.py
 COPY config/nginx.st2-1ppc.conf.tpl /etc/nginx/conf.d/st2-1ppc.conf.tpl
+
+# Default username/password is used unless overridden by supplying ST2_USER and/or ST2_PASSWORD
+# environment variables to `docker run` after the name of the image:
+#   docker run -e ST2_USER... image
+ENTRYPOINT ["/st2-docker/bin/entrypoint.sh"]
+
+# Install inspec
+RUN curl https://omnitruck.chef.io/install.sh | sudo bash -s -- -P inspec
+
+COPY ./test /st2-docker/test
+COPY bin/test.sh /st2-docker/bin
+
+RUN /st2-docker/bin/test.sh

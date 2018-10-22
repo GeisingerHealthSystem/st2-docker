@@ -6,20 +6,23 @@
 
 ## READ FIRST!!
 
-- **Check the [CHANGELOG.rst](https://github.com/StackStorm/st2-docker/blob/master/CHANGELOG.rst)** file for any potential
-  changes that may require restarting containers.
+- **Check the [CHANGELOG.rst](https://github.com/StackStorm/st2-docker/blob/master/CHANGELOG.rst)**
+  file for any potential changes that may require restarting containers.
 - Be sure to use the latest `docker-compose.yml`. Run `git pull` in your `st2-docker` workspace!
 - Run `st2ctl reload --register-all` to reload all services.
-- **For information on how the stackstorm docker image is versioned, see [VERSIONING.md](https://github.com/StackStorm/st2-docker/blob/master/VERSIONING.md)**
-- If a specific image is required, it is always best to be explicit and specify the Image ID. For example:
-  ```
-  stackstorm/stackstorm:2.5.0@{7f33f32b1495}
-  ```
+- **For information on how the stackstorm docker image is versioned, see
+  [VERSIONING.md](https://github.com/StackStorm/st2-docker/blob/master/VERSIONING.md)**.
+- If a specific image version is required, it is always best to be explicit and specify the image
+  digest. See the example of setting `ST2_IMAGE_TAG` environment variable [below](#EnvVars).
+- kubernetes-1ppc is deprecated and will be removed early next year, in favor of the official
+  stackstorm-ha helm chart available at [helm.stackstorm.com](https://helm.stackstorm.com).
 
 
 ## TL;DR
 
 ```
+git clone git@github.com:stackstorm/st2-docker
+cd st2-docker
 make env
 docker-compose up -d
 docker-compose exec stackstorm bash
@@ -59,7 +62,7 @@ First, execute
   make env
   ```
 
-to create the environment files used by docker-compose. You may want to change the values of the
+to create the environment files used by `docker-compose`. You may want to change the values of the
 variables as necessary, but the defaults should be okay if you are not using any off-cluster
 services (e.g. mongo, redis, postgres, rabbitmq).
 
@@ -77,7 +80,22 @@ Second, start the docker environment. execute
 
 This will pull the required images from docker hub, and then start them.
 
-However, if you find need to modify the stackstorm image, you will need to build it. Run:
+To stop the docker environment, run:
+
+  ```
+  docker-compose down
+  ```
+
+## Building the stackstorm image
+
+The pre-built `stackstorm/stackstorm` image may not meet your requirements. You may need to install
+additional libraries, packages or files into the image. For example, if you want to install the
+Ansible pack, you must first install the `libkrb5-dev` package. While the package could be installed
+using a script in `/st2-docker/entrypoint.d`, this will increase the startup time of the container
+and may result in containers that execute different code than others.
+
+Make any necessary changes to `images/stackstorm/Dockerfile`. For example, append `libkrb5-dev` to
+the first `apt-get install` command. Next, run:
 
   ```
   REPO=stable
@@ -86,12 +104,6 @@ However, if you find need to modify the stackstorm image, you will need to build
 
 where REPO is one of 'stable', 'unstable', 'staging-stable', 'staging-unstable'.  Otherwise,
 the following `docker-compose` command will download the specified image from docker hub.
-
-To stop the docker environment, run:
-
-  ```
-  docker-compose down
-  ```
 
 
 ### Getting started: Simple Tutorial Tour
@@ -124,7 +136,7 @@ In `docker-compose.yml`, pin the postgres version to `9.6` and you will not see 
 +    image: postgres:9.6
 ```
 
-## Environment variables
+## Environment variables <a name="EnvVars"></a>
 
 Below is the complete list of available options that can be used to customize your container.
 
@@ -150,6 +162,13 @@ Below is the complete list of available options that can be used to customize yo
 | `REDIS_PORT`     | Redis server port |
 | `REDIS_PASSWORD` | *(Optional)* Redis password |
 
+Also, you can export an additional variable to control which StackStorm version to run by specifying
+the exact Docker image tag:
+
+  ```
+  export ST2_IMAGE_TAG="2.7.1@sha256:4920fd479c907149d9a062c939f158291f0f641fcd1730d9dd2df2696cad2dae"
+  docker-compose up -d
+  ```
 
 ## Running custom shell scripts on boot
 
@@ -187,7 +206,7 @@ Then bind mount it to `/st2-docker/entrypoint.d/modify-st2-config.sh`
   ```
   services:
     stackstorm:
-      image: stackstorm/stackstorm:${TAG:-latest}
+      image: stackstorm/stackstorm:${ST2_IMAGE_TAG:-latest}
        : (snip)
       volumes:
         - /path/to/modify-st2-config.sh:/st2-docker/entrypoint.d/modify-st2-config.sh
@@ -206,6 +225,7 @@ You can bind mount these scripts as mentioned in the previous section.
 
 NOTE: These scripts are currently not available when running in 1ppc mode.
 
+
 ## To enable chatops
 
 Chatops is installed in the `stackstorm` image, but not started by default.
@@ -219,10 +239,12 @@ To enable chatops, delete the file `/etc/init/st2chatops.override` using a scrip
   sudo rm /etc/init/st2chatops.override
   ```
 
-You also need to configure it either
+You also need to configure st2chatops, either:
 
-- by passing all required parameters for st2chatops to the stackstorm container via environment variables
-- by replacing `/opt/stackstorm/chatops/st2chatops.env` with the one that is properly configured. The easiest way is to use bind-mount.
+- by passing all required parameters for st2chatops to the stackstorm container via environment variables OR
+- by replacing `/opt/stackstorm/chatops/st2chatops.env` with one that is properly configured. The easiest way is to use bind-mount.
+
+See [st2chatops.env](https://github.com/StackStorm/st2chatops/blob/master/st2chatops.env) for the required variables.
 
 ## packs.dev directory
 

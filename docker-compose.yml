@@ -2,8 +2,7 @@ version: '3'
 
 services:
   stackstorm:
-    image: stackstorm/stackstorm:${TAG:-latest}
-    container_name: stackstorm
+    image: stackstorm/stackstorm:${ST2_IMAGE_TAG:-latest}
     env_file:
       - conf/stackstorm.env
       - conf/mongo.env
@@ -12,6 +11,11 @@ services:
       - conf/redis.env
     ports:
       - "443:443"
+    depends_on:
+      - mongo
+      - postgres
+      - rabbitmq
+      - redis
     networks:
       - public
       - private
@@ -30,7 +34,6 @@ services:
 
   mongo:
     image: mongo:3.4
-    container_name: mongo
     env_file:
       - conf/mongo.env
     networks:
@@ -41,7 +44,6 @@ services:
     dns_search: .
   rabbitmq:
     image: rabbitmq:3.6-management
-    container_name: rabbitmq
     env_file:
       - conf/rabbitmq.env
     networks:
@@ -51,7 +53,6 @@ services:
     dns_search: .
   postgres:
     image: postgres:9.6
-    container_name: postgres
     env_file:
       - conf/postgres.env
     networks:
@@ -61,7 +62,6 @@ services:
     dns_search: .
   redis:
     image: redis:4.0
-    container_name: redis
     env_file:
       - conf/redis.env
     networks:
